@@ -49,6 +49,14 @@ python benchmarks/run_sklearn_baselines.py \
   --seed 20260506
 ```
 
+Generate the per-assay PR-AUC distribution figure:
+
+```bash
+python benchmarks/plot_pr_auc_distribution.py \
+  --metrics benchmarks/results/per_assay_metrics_all.csv \
+  --out benchmarks/results/figures/per_assay_pr_auc_distribution.pdf
+```
+
 Outputs:
 
 - `scaffold_split.csv`: row-level split assignments and scaffold keys.
