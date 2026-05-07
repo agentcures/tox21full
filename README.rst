@@ -17,8 +17,37 @@ into pandas:
     tox21full ~/Downloads/tox21full.csv.gz
 
 
-You can also create it as a parquet file (more efficent):
+You can also create it as a parquet file (more efficient):
 
 :: 
 
     tox21full --format parquet ~/Downloads/tox21full.parquet
+
+
+Benchmark workflow
+------------------
+
+The benchmark protocol lives in ``benchmarks/``.  It creates a
+deterministic scaffold split, runs ECFP/logistic regression, ECFP/random forest,
+and RDKit-descriptor boosted-tree baselines, and prepares the same split for a
+Chemprop MPNN baseline.
+
+::
+
+    python -m pip install -r benchmarks/requirements-benchmark.txt
+    python benchmarks/run_sklearn_baselines.py \
+        --data tox21full.csv \
+        --out-dir benchmarks/results \
+        --bootstrap 1000 \
+        --seed 20260506
+
+For the Chemprop baseline:
+
+::
+
+    python -m pip install -r benchmarks/requirements-chemprop.txt
+    python benchmarks/prepare_chemprop.py \
+        --data tox21full.csv \
+        --split-file benchmarks/results/scaffold_split.csv \
+        --out-dir benchmarks/results/chemprop
+    bash benchmarks/results/chemprop/run_chemprop.sh
