@@ -19,7 +19,7 @@ into pandas:
 
 You can also create it as a parquet file (more efficient):
 
-:: 
+::
 
     tox21full --format parquet ~/Downloads/tox21full.parquet
 

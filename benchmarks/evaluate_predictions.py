@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import pandas as pd
-
 from benchmark_utils import (
     bootstrap_macro_ci,
     collect_prediction_records_from_wide,
@@ -85,9 +84,9 @@ def main() -> None:
     summary.update(
         bootstrap_macro_ci(
             records,
-            test_row_ids=split_df.loc[
-                split_df["split"] == "test", "row_id"
-            ].to_numpy(dtype=int),
+            test_row_ids=split_df.loc[split_df["split"] == "test", "row_id"].to_numpy(
+                dtype=int
+            ),
             n_bootstrap=args.bootstrap,
             seed=args.seed,
         )

@@ -1,16 +1,17 @@
-from typing import Sequence, Tuple, Dict, List
-from io import StringIO
-from urllib.request import urlopen, Request
-from urllib.parse import urlencode
-from functools import reduce
 import json
 import time
+from collections.abc import Iterator, Mapping
+from functools import reduce
+from io import StringIO
+from typing import Any
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-from tqdm.auto import tqdm
 import pandas as pd
-
+from tqdm.auto import tqdm
 
 PUBCHEM_BASE = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
+AssayInfo = dict[str, Any]
 
 # Metadata for every Tox21 summary assay, sourced from PubChem BioAssay.
 # Each entry includes the PubChem AID, source identifier, full assay name,
@@ -544,7 +545,7 @@ TOX21_ASSAYS = [
 ]
 
 
-def _pubchem_get(path: str, params: dict = None) -> bytes:
+def _pubchem_get(path: str, params: Mapping[str, Any] | None = None) -> bytes:
     url = f"{PUBCHEM_BASE}/{path}"
     if params:
         url += "?" + urlencode(params)
@@ -553,7 +554,7 @@ def _pubchem_get(path: str, params: dict = None) -> bytes:
         return fd.read()
 
 
-def _pubchem_post(path: str, data: dict) -> bytes:
+def _pubchem_post(path: str, data: Mapping[str, Any]) -> bytes:
     url = f"{PUBCHEM_BASE}/{path}"
     body = urlencode(data).encode("utf-8")
     req = Request(
@@ -571,7 +572,7 @@ def _pubchem_post(path: str, data: dict) -> bytes:
 class Tox21Full:
     _SMILES_BATCH_SIZE = 200
 
-    def get_tox21_assays(self) -> List[Dict]:
+    def get_tox21_assays(self) -> list[AssayInfo]:
         """Return built-in Tox21 assay metadata.
 
         Uses the ``TOX21_ASSAYS`` list embedded in this module.  Each dict
@@ -580,7 +581,7 @@ class Tox21Full:
         """
         return list(TOX21_ASSAYS)
 
-    def discover_tox21_assays(self) -> List[Dict]:
+    def discover_tox21_assays(self) -> list[AssayInfo]:
         """Discover Tox21 summary assays live from PubChem.
 
         Useful for refreshing the built-in ``TOX21_ASSAYS`` list when
@@ -590,14 +591,14 @@ class Tox21Full:
         aids = json.loads(raw)["IdentifierList"]["AID"]
         aids.sort()
 
-        all_summaries: List[Dict] = []
+        all_summaries: list[AssayInfo] = []
         batch_size = 50
         for i in range(0, len(aids), batch_size):
             batch = aids[i : i + batch_size]
             aids_str = ",".join(str(a) for a in batch)
             raw = _pubchem_get(f"assay/aid/{aids_str}/summary/JSON")
-            summaries = json.loads(raw).get("AssaySummaries", {}).get(
-                "AssaySummary", []
+            summaries = (
+                json.loads(raw).get("AssaySummaries", {}).get("AssaySummary", [])
             )
             all_summaries.extend(summaries)
             time.sleep(0.2)
@@ -608,9 +609,9 @@ class Tox21Full:
         summary_assays.sort(key=lambda s: s["AID"])
         return summary_assays
 
-    def _get_cid_smiles(self, cids: List[int]) -> Dict[int, str]:
+    def _get_cid_smiles(self, cids: list[int]) -> dict[int, str]:
         """Batch-convert CIDs to SMILES via PubChem."""
-        mapping = {}
+        mapping: dict[int, str] = {}
         for i in range(0, len(cids), self._SMILES_BATCH_SIZE):
             batch = cids[i : i + self._SMILES_BATCH_SIZE]
             cid_str = ",".join(str(c) for c in batch)
@@ -630,7 +631,7 @@ class Tox21Full:
         df = pd.read_csv(StringIO(raw.decode("utf-8")))
         return df
 
-    def to_dfs(self) -> Sequence[Tuple[Dict, pd.DataFrame]]:
+    def to_dfs(self) -> Iterator[tuple[AssayInfo, pd.DataFrame]]:
         """Yield (assay_info, DataFrame) pairs for all Tox21 summary assays."""
         assays = self.get_tox21_assays()
         for assay in assays:
@@ -639,7 +640,8 @@ class Tox21Full:
                 yield assay, df
             except Exception as exc:
                 import warnings
-                warnings.warn(f"Skipping AID {assay['aid']}: {exc}")
+
+                warnings.warn(f"Skipping AID {assay['aid']}: {exc}", stacklevel=2)
                 continue
             time.sleep(0.2)
 

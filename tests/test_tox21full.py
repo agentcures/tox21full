@@ -1,12 +1,9 @@
 import json
-from unittest.mock import patch, MagicMock
-from io import BytesIO
+from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
-from tox21full import Tox21Full, TOX21_ASSAYS
-
+from tox21full import TOX21_ASSAYS, Tox21Full
 
 # ── Fixtures / helpers ──────────────────────────────────────────────
 
@@ -32,13 +29,13 @@ FAKE_SUMMARY_JSON = json.dumps(
 ).encode()
 
 FAKE_CONCISE_CSV = (
-    '"AID","SID","CID","Activity Outcome","Target Accession",'
-    '"Target GeneID","Activity Value [uM]","Activity Name",'
-    '"Assay Name","Assay Type","PubMed ID","RNAi"\n'
-    '100,1001,10,"Active","X",1,"","","Test","",""," "\n'
-    '100,1002,20,"Inactive","X",1,"","","Test","","",""\n'
-    '100,1003,10,"Inactive","X",1,"","","Test","","",""\n'
-).encode()
+    b'"AID","SID","CID","Activity Outcome","Target Accession",'
+    b'"Target GeneID","Activity Value [uM]","Activity Name",'
+    b'"Assay Name","Assay Type","PubMed ID","RNAi"\n'
+    b'100,1001,10,"Active","X",1,"","","Test","",""," "\n'
+    b'100,1002,20,"Inactive","X",1,"","","Test","","",""\n'
+    b'100,1003,10,"Inactive","X",1,"","","Test","","",""\n'
+)
 
 FAKE_SMILES_JSON = json.dumps(
     {
@@ -178,9 +175,10 @@ class TestCLI:
     @patch("tox21full._pubchem_post", side_effect=_mock_pubchem_post)
     @patch("tox21full._pubchem_get", side_effect=_mock_pubchem_get)
     def test_csv_output(self, mock_get, mock_post, tmp_path):
-        from tox21full.__main__ import main
-        from tox21full import Tox21Full as T
         import sys
+
+        from tox21full import Tox21Full as T
+        from tox21full.__main__ import main
 
         out = tmp_path / "test.csv"
         original = T.get_tox21_assays
@@ -197,9 +195,10 @@ class TestCLI:
     @patch("tox21full._pubchem_post", side_effect=_mock_pubchem_post)
     @patch("tox21full._pubchem_get", side_effect=_mock_pubchem_get)
     def test_parquet_output(self, mock_get, mock_post, tmp_path):
-        from tox21full.__main__ import main
-        from tox21full import Tox21Full as T
         import sys
+
+        from tox21full import Tox21Full as T
+        from tox21full.__main__ import main
 
         out = tmp_path / "test.parquet"
         original = T.get_tox21_assays

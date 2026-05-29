@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
 MODEL_LABELS = {
     "ecfp_logreg": "ECFP4\nlogistic",
     "ecfp_rf": "ECFP4\nRF",
@@ -74,7 +73,7 @@ def main() -> None:
 
     colors = ["#6b8e23", "#0f766e", "#4f7cac", "#9f6b38"]
     rng = np.random.default_rng(20260506)
-    for i, (values, color) in enumerate(zip(grouped, colors), start=1):
+    for i, (values, color) in enumerate(zip(grouped, colors, strict=True), start=1):
         box["boxes"][i - 1].set_facecolor(color)
         box["boxes"][i - 1].set_alpha(0.22)
         jitter = rng.normal(0, 0.035, size=len(values))

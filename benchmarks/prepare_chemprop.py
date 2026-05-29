@@ -5,16 +5,14 @@ from __future__ import annotations
 import argparse
 import shlex
 from pathlib import Path
-from typing import List
 
 import pandas as pd
-
 from benchmark_utils import SPLIT_ORDER, label_columns, read_table, write_json
 from make_scaffold_split import make_split, parse_fractions
 
 
-def shell_join(args: List[str]) -> str:
-    return " ".join(shlex.quote(arg) for arg in args)
+def shell_join(args: list[str]) -> str:
+    return shlex.join(args)
 
 
 def main() -> None:
@@ -55,9 +53,7 @@ def main() -> None:
 
     split_paths = {}
     for split in SPLIT_ORDER:
-        row_ids = split_df.loc[split_df["split"] == split, "row_id"].to_numpy(
-            dtype=int
-        )
+        row_ids = split_df.loc[split_df["split"] == split, "row_id"].to_numpy(dtype=int)
         split_frame = chemprop_df.iloc[row_ids]
         path = args.out_dir / f"chemprop_{split}.csv"
         split_frame.to_csv(path, index=False)

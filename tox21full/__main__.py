@@ -1,8 +1,9 @@
 from argparse import ArgumentParser
+
 from . import Tox21Full
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(
         description="Builds the Tox21 Full Dataset from NIH raw data"
     )

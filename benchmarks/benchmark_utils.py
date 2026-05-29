@@ -8,15 +8,14 @@ write predictions that flow through the same metric code.
 from __future__ import annotations
 
 import json
-from collections import Counter, defaultdict
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score, roc_auc_score
-
 
 SPLIT_ORDER = ("train", "valid", "test")
 
@@ -29,8 +28,8 @@ class MetricResult:
     n: int
     positives: int
     negatives: int
-    roc_auc: Optional[float]
-    pr_auc: Optional[float]
+    roc_auc: float | None
+    pr_auc: float | None
     reason: str = ""
 
 
@@ -44,7 +43,7 @@ def read_table(path: Path) -> pd.DataFrame:
     raise ValueError(f"Unsupported table format for {path}")
 
 
-def label_columns(df: pd.DataFrame, smiles_column: str = "smiles") -> List[str]:
+def label_columns(df: pd.DataFrame, smiles_column: str = "smiles") -> list[str]:
     """Return assay label columns in dataset order."""
     if smiles_column not in df.columns:
         raise ValueError(f"Missing required SMILES column: {smiles_column}")
@@ -53,7 +52,7 @@ def label_columns(df: pd.DataFrame, smiles_column: str = "smiles") -> List[str]:
 
 def compute_binary_metrics(
     y_true: np.ndarray, y_score: np.ndarray
-) -> Tuple[Optional[float], Optional[float], str]:
+) -> tuple[float | None, float | None, str]:
     """Compute ROC-AUC and PR-AUC when the labels support the metric."""
     mask = np.isfinite(y_true) & np.isfinite(y_score)
     y_true = y_true[mask].astype(int)
@@ -85,9 +84,9 @@ def per_assay_metrics(
     model_name: str,
     prediction_records: Mapping[str, pd.DataFrame],
     split: str = "test",
-) -> List[MetricResult]:
+) -> list[MetricResult]:
     """Evaluate a model's predictions for each assay."""
-    results: List[MetricResult] = []
+    results: list[MetricResult] = []
     for assay, pred in prediction_records.items():
         y_true = pred["y_true"].to_numpy(dtype=float)
         y_score = pred["y_score"].to_numpy(dtype=float)
@@ -117,7 +116,7 @@ def metrics_to_frame(metrics: Sequence[MetricResult]) -> pd.DataFrame:
     return pd.DataFrame([m.__dict__ for m in metrics])
 
 
-def macro_summary(metrics: Sequence[MetricResult]) -> Dict[str, object]:
+def macro_summary(metrics: Sequence[MetricResult]) -> dict[str, object]:
     """Summarize per-assay metrics using macro means over defined assays."""
     roc_values = [m.roc_auc for m in metrics if m.roc_auc is not None]
     pr_values = [m.pr_auc for m in metrics if m.pr_auc is not None]
@@ -140,8 +139,8 @@ def macro_summary(metrics: Sequence[MetricResult]) -> Dict[str, object]:
 
 def _weighted_metric_sample(
     pred: pd.DataFrame, draw_counts: Mapping[int, int]
-) -> Tuple[np.ndarray, np.ndarray]:
-    positions: List[int] = []
+) -> tuple[np.ndarray, np.ndarray]:
+    positions: list[int] = []
     row_ids = pred["row_id"].to_numpy(dtype=int)
     for pos, row_id in enumerate(row_ids):
         count = draw_counts.get(int(row_id), 0)
@@ -160,7 +159,7 @@ def bootstrap_macro_ci(
     test_row_ids: Sequence[int],
     n_bootstrap: int,
     seed: int,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """Bootstrap macro ROC-AUC and PR-AUC by resampling test compounds."""
     if n_bootstrap <= 0:
         return {
@@ -171,14 +170,14 @@ def bootstrap_macro_ci(
 
     rng = np.random.default_rng(seed)
     test_row_ids = np.asarray(test_row_ids, dtype=int)
-    roc_samples: List[float] = []
-    pr_samples: List[float] = []
+    roc_samples: list[float] = []
+    pr_samples: list[float] = []
 
     for _ in range(n_bootstrap):
         draw = rng.choice(test_row_ids, size=test_row_ids.size, replace=True)
         draw_counts = Counter(int(i) for i in draw)
-        roc_values: List[float] = []
-        pr_values: List[float] = []
+        roc_values: list[float] = []
+        pr_values: list[float] = []
 
         for pred in prediction_records.values():
             y_true, y_score = _weighted_metric_sample(pred, draw_counts)
@@ -193,7 +192,7 @@ def bootstrap_macro_ci(
         if pr_values:
             pr_samples.append(float(np.mean(pr_values)))
 
-    def ci(values: Sequence[float]) -> Optional[List[float]]:
+    def ci(values: Sequence[float]) -> list[float] | None:
         if not values:
             return None
         lo, hi = np.percentile(np.asarray(values), [2.5, 97.5])
@@ -225,9 +224,9 @@ def write_predictions(
     if frames:
         pd.concat(frames, ignore_index=True).to_csv(out_path, index=False)
     else:
-        pd.DataFrame(
-            columns=["assay", "row_id", "smiles", "y_true", "y_score"]
-        ).to_csv(out_path, index=False)
+        pd.DataFrame(columns=["assay", "row_id", "smiles", "y_true", "y_score"]).to_csv(
+            out_path, index=False
+        )
 
 
 def collect_prediction_records_from_wide(
@@ -236,13 +235,13 @@ def collect_prediction_records_from_wide(
     row_ids: Sequence[int],
     assays: Sequence[str],
     smiles_column: str = "smiles",
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """Convert wide prediction output into the long format used by metrics."""
-    records: Dict[str, pd.DataFrame] = {}
+    records: dict[str, pd.DataFrame] = {}
     row_ids = np.asarray(row_ids, dtype=int)
     truth_slice = truth.iloc[row_ids]
 
-    aliases: Dict[str, str] = {}
+    aliases: dict[str, str] = {}
     for column in predictions.columns:
         lower = column.lower()
         aliases[column] = column

@@ -4,20 +4,11 @@ from __future__ import annotations
 
 import argparse
 import time
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
-from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem, Descriptors
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
-from tqdm.auto import tqdm
-
 from benchmark_utils import (
     SPLIT_ORDER,
     bootstrap_macro_ci,
@@ -30,27 +21,30 @@ from benchmark_utils import (
     write_predictions,
 )
 from make_scaffold_split import make_split, parse_fractions
-
+from rdkit import Chem, DataStructs
+from rdkit.Chem import AllChem, Descriptors
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from tqdm.auto import tqdm
 
 MODEL_CHOICES = ("ecfp_logreg", "ecfp_rf", "rdkit_hgb")
 
 
-def molecules_from_smiles(smiles: Sequence[str]) -> List[Chem.Mol]:
+def molecules_from_smiles(smiles: Sequence[str]) -> list[Chem.Mol]:
     """Parse SMILES strings; invalid molecules are represented as None."""
     return [Chem.MolFromSmiles(str(value)) for value in smiles]
 
 
-def ecfp_features(
-    mols: Sequence[Chem.Mol], radius: int, n_bits: int
-) -> np.ndarray:
+def ecfp_features(mols: Sequence[Chem.Mol], radius: int, n_bits: int) -> np.ndarray:
     """Compute dense ECFP/Morgan bit vectors."""
     features = np.zeros((len(mols), n_bits), dtype=np.float32)
     for i, mol in enumerate(tqdm(mols, desc="[Features] ECFP", unit="mol")):
         if mol is None:
             continue
-        fp = AllChem.GetMorganFingerprintAsBitVect(
-            mol, radius=radius, nBits=n_bits
-        )
+        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=radius, nBits=n_bits)
         DataStructs.ConvertToNumpyArray(fp, features[i])
     return features
 
@@ -58,12 +52,12 @@ def ecfp_features(
 def descriptor_features(mols: Sequence[Chem.Mol]) -> pd.DataFrame:
     """Compute RDKit 2D descriptor features."""
     descriptor_fns = Descriptors._descList
-    rows: List[List[float]] = []
+    rows: list[list[float]] = []
     for mol in tqdm(mols, desc="[Features] RDKit descriptors", unit="mol"):
         if mol is None:
             rows.append([np.nan] * len(descriptor_fns))
             continue
-        values: List[float] = []
+        values: list[float] = []
         for _, fn in descriptor_fns:
             try:
                 value = float(fn(mol))
@@ -157,12 +151,12 @@ def run_model(
     split_df: pd.DataFrame,
     assays: Sequence[str],
     seed: int,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """Train one-vs-rest assay classifiers and return test predictions."""
     split_values = split_df["split"].to_numpy()
     train_rows = split_values == "train"
     test_rows = split_values == "test"
-    prediction_records: Dict[str, pd.DataFrame] = {}
+    prediction_records: dict[str, pd.DataFrame] = {}
 
     for assay in tqdm(assays, desc=f"[Train] {model_name}", unit="assay"):
         observed_train = train_rows & df[assay].notna().to_numpy()
@@ -200,7 +194,7 @@ def build_features_for_models(
     """Compute only the feature matrices required by requested models."""
     models = tuple(models)
     mols = molecules_from_smiles(smiles)
-    features: Dict[str, np.ndarray] = {}
+    features: dict[str, np.ndarray] = {}
 
     if any(model.startswith("ecfp_") for model in models):
         ecfp = ecfp_features(mols, radius=ecfp_radius, n_bits=ecfp_bits)
@@ -215,13 +209,11 @@ def build_features_for_models(
     return features
 
 
-def parse_models(value: str) -> List[str]:
+def parse_models(value: str) -> list[str]:
     models = [part.strip() for part in value.split(",") if part.strip()]
     invalid = [model for model in models if model not in MODEL_CHOICES]
     if invalid:
-        raise argparse.ArgumentTypeError(
-            f"Unknown model(s): {', '.join(invalid)}"
-        )
+        raise argparse.ArgumentTypeError(f"Unknown model(s): {', '.join(invalid)}")
     return models
 
 
@@ -277,11 +269,11 @@ def main() -> None:
         ecfp_bits=args.ecfp_bits,
     )
 
-    all_metric_frames: List[pd.DataFrame] = []
-    all_summaries: List[Dict[str, object]] = []
-    test_row_ids = split_df.loc[
-        split_df["split"] == "test", "row_id"
-    ].to_numpy(dtype=int)
+    all_metric_frames: list[pd.DataFrame] = []
+    all_summaries: list[dict[str, object]] = []
+    test_row_ids = split_df.loc[split_df["split"] == "test", "row_id"].to_numpy(
+        dtype=int
+    )
 
     for model_name in args.models:
         predictions = run_model(
@@ -333,8 +325,7 @@ def main() -> None:
             "ecfp_bits": args.ecfp_bits,
             "elapsed_seconds": round(time.time() - started, 3),
             "split_counts": {
-                split: int((split_df["split"] == split).sum())
-                for split in SPLIT_ORDER
+                split: int((split_df["split"] == split).sum()) for split in SPLIT_ORDER
             },
             "summaries": all_summaries,
         },
