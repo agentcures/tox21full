@@ -9,6 +9,14 @@ The package builds a multi-task molecular activity table with one SMILES column
 and one binary activity column per assay.
 
 
+Install
+-------
+
+::
+
+    uv sync
+
+
 Downloads PubChem assay data and creates a clean CSV.GZ file ready for import
 into pandas:
 
